@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-24.04  
     strategy:
       matrix:
-        target: [K2P]
+        target: [K2P-NANO]
         toolchain: [mipsel-linux-musl]
     steps:
       - uses: actions/checkout@v3
