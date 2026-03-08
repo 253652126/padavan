@@ -1,14 +1,11 @@
 name: build-K2P
 
-on: 
-  #push:
-   # branches:
-   # - "*"
+on:
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04  
     strategy:
       matrix:
         target: [K2P]
@@ -16,27 +13,45 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: main
+          ref: dev
+
       - uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.target }}-${{ matrix.toolchain }}
+
       - uses: actions/setup-go@v4
         with:
           go-version: '1.23.0'
           check-latest: true
           cache: false
+
       - uses: actions/setup-node@v3
         with:
           node-version: 20
           check-latest: true
-      - name: Prepare
+
+      - name: Install system dependencies
         run: |
-          sudo apt update
-          sudo apt install libtool-bin gperf python3-docutils autopoint gettext ccache
+          sudo apt update && sudo apt install -y \
+            build-essential autoconf automake libtool bison flex \
+            gperf gettext autopoint libtool-bin python3-docutils \
+            ccache liblzma-dev zlib1g-dev libssl-dev pkg-config \
+            wget curl git libstdc++6 libmnl-dev bzip2 libltdl-dev
+
+      - name: Prepare ipset build
+        run: |
+          cd trunk/user/ipset/ipset-7.11
+          if [ ! -f configure ]; then
+            echo "Running autoreconf to generate configure..."
+            autoreconf -fi || { echo "autoreconf failed!"; exit 1; }
+          fi
+          ls -l configure Makefile*
+
       - name: Build
         run: |
           make ${{ matrix.target }} TOOLCHAIN=${{ matrix.toolchain }}
+
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}-${{ matrix.toolchain }}
+          name: K2P-padavan-4.4
           path: trunk/images/*.trx
