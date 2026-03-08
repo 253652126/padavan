@@ -1,21 +1,39 @@
-include $(ROOTDIR)/rules.mk
+SRC_NAME=msd_lite
+THISDIR = $(shell pwd)
 
-PKG_NAME:=msd_lite
-PKG_SOURCE_DATE:=2023-02-17
+CFLAGS += -fno-unwind-tables -fno-asynchronous-unwind-tables
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/rozhuk-im/msd_lite
-PKG_SOURCE_VERSION:=744d2ef91797471e26b3b117e7aa0ffebbb91106
+all: download_test config_test
+	$(MAKE) -j$(HOST_NCPU) -C $(SRC_NAME)/build
 
-PKG_FIXUP:=autoreconf
+download_test:
+	( if [ ! -d "$(THISDIR)/$(SRC_NAME)" ]; then \
+		git clone https://github.com/rozhuk-im/msd_lite.git ; \
+		cd "$(SRC_NAME)" ; \
+		git submodule update --init --recursive ; \
+		patch -p1 -i ../msd_lite.diff ; \
+		cd src/liblcb ; \
+		patch -p1 -i ../../../liblcb_msd_lite.diff ; \
+		sed -i 's|return syscall(SYS_pidfd_open, pid, flags);|return -1; // disabled for old kernel|' src/threadpool/threadpool.c ; \
+		cd ../../; \
+	fi )
 
-include $(INCLUDE_DIR)/package.mk
-include $(INCLUDE_DIR)/cmake.mk
+config_test:
+	( if [ -f ./config_done ]; then \
+		echo "the same configuration"; \
+	else \
+		make configure && touch config_done; \
+	fi )
 
-$(eval $(call BuildPackage,msd_lite))
+configure:
+	( mkdir -p $(SRC_NAME)/build && cd $(SRC_NAME)/build ; \
+	cmake -DCMAKE_TOOLCHAIN_FILE=../../cross-mipsel-linux.cmake -DCMAKE_BUILD_TYPE=RELEASE .. \
+	)
+
+clean:
+	rm -rf $(SRC_NAME)/build
+	rm -f config_done
 
 romfs:
-	$(INSTALL_DIR) $(ROMFSDIR)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/msd_lite $(ROMFSDIR)/usr/bin/msd_lite
-	$(INSTALL_DIR) $(ROMFSDIR)/etc_ro
-	$(INSTALL_CONF) ./msd_lite.conf $(ROMFSDIR)/etc_ro/msd_lite.conf
+	$(ROMFSINST) $(THISDIR)/$(SRC_NAME)/build/src/msd_lite /usr/bin/msd_lite
+	$(ROMFSINST) $(THISDIR)/msd_lite.conf /etc_ro/msd_lite.conf
