@@ -1,24 +1,21 @@
-# trunk/user/msd_lite/Makefile
-# Pure native build for Padavan (no OpenWrt, no CMake)
+include $(ROOTDIR)/rules.mk
 
-all: msd_lite
+PKG_NAME:=msd_lite
+PKG_SOURCE_DATE:=2023-02-17
 
-msd_lite:
-	$(CC) $(CFLAGS) -std=c99 -D_GNU_SOURCE \
-		-Isrc -Isrc/lib -Isrc/utils \
-		-o $@ \
-		src/main.c \
-		src/lib/*.c \
-		src/utils/*.c \
-		-lpthread
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/rozhuk-im/msd_lite
+PKG_SOURCE_VERSION:=744d2ef91797471e26b3b117e7aa0ffebbb91106
 
-install:
-	mkdir -p $(INSTALLDIR)/usr/bin
-	cp msd_lite $(INSTALLDIR)/usr/bin/
-	mkdir -p $(INSTALLDIR)/etc_ro
-	cp msd_lite.conf $(INSTALLDIR)/etc_ro/
+PKG_FIXUP:=autoreconf
 
-clean:
-	rm -f msd_lite
+include $(INCLUDE_DIR)/package.mk
+include $(INCLUDE_DIR)/cmake.mk
 
-.PHONY: all install clean
+$(eval $(call BuildPackage,msd_lite))
+
+romfs:
+	$(INSTALL_DIR) $(ROMFSDIR)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/msd_lite $(ROMFSDIR)/usr/bin/msd_lite
+	$(INSTALL_DIR) $(ROMFSDIR)/etc_ro
+	$(INSTALL_CONF) ./msd_lite.conf $(ROMFSDIR)/etc_ro/msd_lite.conf
